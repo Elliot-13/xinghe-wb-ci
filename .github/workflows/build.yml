@@ -1,0 +1,71 @@
+name: build
+
+# 星河班务（xinghe-homeroom-workbench）静态构建
+# 上游是 Next.js 16 纯前端应用，构建产物 out/ 可直接当静态站点托管
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 21 * * 0'   # 每周一 05:00 CST
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/build.yml'
+
+env:
+  UPSTREAM: https://github.com/zhangyushaonao/xinghe-homeroom-workbench.git
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout 本仓库
+        uses: actions/checkout@v4
+
+      - name: 拉取上游
+        run: |
+          git clone --depth 1 "$UPSTREAM" upstream
+          git -C upstream log -1 --format='commit=%h date=%ad' --date=short
+
+      - name: 改成静态导出
+        run: |
+          cd upstream
+          node -e "
+          const fs=require('fs');
+          let s=fs.readFileSync('next.config.ts','utf8');
+          s=s.replace('const nextConfig: NextConfig = {', \"const nextConfig: NextConfig = {\n  output: 'export',\");
+          fs.writeFileSync('next.config.ts',s);
+          "
+          cat next.config.ts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: upstream/package-lock.json
+
+      - name: 安装依赖
+        run: cd upstream && npm ci --no-audit --no-fund
+
+      - name: 构建
+        run: cd upstream && npm run build
+
+      - name: 打包产物
+        run: |
+          cd upstream
+          du -sh out
+          tar -czf ../site.tar.gz -C out .
+          ls -lh ../site.tar.gz
+          echo "files=$(find out -type f | wc -l)" >> $GITHUB_ENV
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site.tar.gz
+          retention-days: 30
+
+      - name: 摘要
+        run: |
+          echo "### 构建完成" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 产物：\`site.tar.gz\`（静态站点，${{ env.files }} 个文件）" >> "$GITHUB_STEP_SUMMARY"
+          echo "- 用法：下载 artifact → 解包到静态目录即可托管" >> "$GITHUB_STEP_SUMMARY"
