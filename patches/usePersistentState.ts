@@ -3,17 +3,30 @@
 /**
  * 服务端优先的持久化 Hook（小飞改造版）
  *
- * 上游原版只写 localStorage：换设备、清缓存即丢。
- * 本版优先读写本站的 /api/data（服务端 store.json + 30 份滚动备份），
- * 接口不可用时自动退回 localStorage，离线/纯静态打开仍可用。
+ * 1) 服务端优先：优先读写本站 /api/data（服务端 store.json + 多层历史备份），
+ *    接口不可用时自动退回 localStorage，离线/纯静态打开仍可用。
+ * 2) 多班级：key 自动带当前班级前缀。c1 用原始 key（兼容既有数据），
+ *    其余班级用 c2_、c3_ 前缀，各班级数据互不可见。
  */
 
 import { useEffect, useState } from "react";
 
 const API = "/api/data";
+const CLASS_LS = "tw-class-id";
 
 // 服务端 key 只允许字母数字下划线连字符，把 "homeroom.tasks.v1" 归一化成 "homeroom_tasks_v1"
-const mapKey = (key: string) => key.replace(/[^A-Za-z0-9_-]+/g, "_");
+const baseKey = (key: string) => key.replace(/[^A-Za-z0-9_-]+/g, "_");
+
+function classPrefix(): string {
+  try {
+    const id = window.localStorage.getItem(CLASS_LS) || "c1";
+    return id === "c1" ? "" : id + "_";
+  } catch {
+    return "";
+  }
+}
+
+const mapKey = (key: string) => classPrefix() + baseKey(key);
 
 async function readRemote(key: string): Promise<unknown | undefined> {
   try {
@@ -55,7 +68,7 @@ export function usePersistentState<T>(key: string, initialValue: T) {
           setValue(remote as T);
         } else {
           // 服务端还没有这条数据，先看本机有没有旧缓存
-          const local = window.localStorage.getItem(key);
+          const local = window.localStorage.getItem(mapKey(key));
           if (local) setValue(JSON.parse(local) as T);
         }
       } catch {
@@ -72,10 +85,11 @@ export function usePersistentState<T>(key: string, initialValue: T) {
 
   useEffect(() => {
     if (!isHydrated) return;
+    const k = mapKey(key);
 
     // 本机留一份，断网也能用
     try {
-      window.localStorage.setItem(key, JSON.stringify(value));
+      window.localStorage.setItem(k, JSON.stringify(value));
     } catch {
       // 浏览器存储不可用时忽略
     }

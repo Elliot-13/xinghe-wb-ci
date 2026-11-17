@@ -69,6 +69,17 @@ jobs:
           head -6 upstream/components/homeroom/usePersistentState.ts
           grep -c "api/data" upstream/components/homeroom/usePersistentState.ts
 
+      - name: 新班级从空数据起步（不留演示档案）
+        run: |
+          cd upstream
+          f=components/homeroom/HomeroomDashboard.tsx
+          sed -i 's#usePersistentState("homeroom.tasks.v1", INITIAL_TASKS)#usePersistentState("homeroom.tasks.v1", [] as unknown as typeof INITIAL_TASKS)#' $f
+          sed -i 's#usePersistentState("homeroom.messages.v1", INITIAL_MESSAGES)#usePersistentState("homeroom.messages.v1", [] as unknown as typeof INITIAL_MESSAGES)#' $f
+          sed -i 's#usePersistentState("homeroom.students.v1", STUDENTS)#usePersistentState("homeroom.students.v1", [] as unknown as typeof STUDENTS)#' $f
+          sed -i 's#内置 42 条本地演示档案，##' $f
+          grep -c "as unknown as typeof" $f
+          grep -c "内置 42 条" $f || echo "演示文案已清"
+
       - name: 安装依赖
         run: cd upstream && npm ci --no-audit --no-fund
 
