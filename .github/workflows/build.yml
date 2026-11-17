@@ -32,11 +32,20 @@ jobs:
           cd upstream
           node -e "
           const fs=require('fs');
-          let s=fs.readFileSync('next.config.ts','utf8');
-          s=s.replace('const nextConfig: NextConfig = {', \"const nextConfig: NextConfig = {\n  output: 'export',\");
-          fs.writeFileSync('next.config.ts',s);
+          // 1) next.config 打开静态导出
+          let c=fs.readFileSync('next.config.ts','utf8');
+          if(!c.includes('output:')) {
+            c=c.replace('const nextConfig: NextConfig = {', \"const nextConfig: NextConfig = {\n  output: 'export',\");
+            fs.writeFileSync('next.config.ts',c);
+          }
+          // 2) metadata 路由在 export 下必须声明 force-static
+          let m=fs.readFileSync('app/manifest.ts','utf8');
+          if(!m.includes('force-static')) {
+            fs.writeFileSync('app/manifest.ts', 'export const dynamic = \"force-static\";\n\n' + m);
+          }
           "
-          cat next.config.ts
+          head -8 next.config.ts
+          head -3 app/manifest.ts
 
       - uses: actions/setup-node@v4
         with:
