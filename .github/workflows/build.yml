@@ -86,16 +86,15 @@ jobs:
       - name: 构建
         run: cd upstream && npm run build
 
-      - name: 注入「数据恢复」入口
+      - name: 输出为 app.html 并注入浮动入口
         run: |
           cd upstream
-          if [ -f out/index.html ]; then
-            grep -q "restore-link.js" out/index.html || \
-              sed -i 's#</body>#<script src="/restore-link.js" defer></script></body>#' out/index.html
-            echo "入口已注入: $(grep -c "restore-link.js" out/index.html)"
-          else
-            echo "找不到 out/index.html"; exit 1
+          test -f out/index.html || { echo "找不到 out/index.html"; exit 1; }
+          mv out/index.html out/app.html
+          if ! grep -q tw-nav.js out/app.html; then
+            sed -i 's#</body>#<script src="/tw-nav.js" defer></script></body>#' out/app.html
           fi
+          grep -c tw-nav.js out/app.html
 
       - name: 打包产物
         run: |
