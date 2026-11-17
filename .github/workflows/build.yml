@@ -53,6 +53,12 @@ jobs:
           cache: 'npm'
           cache-dependency-path: upstream/package-lock.json
 
+      - name: 换上服务端持久化 Hook
+        run: |
+          cp patches/usePersistentState.ts upstream/components/homeroom/usePersistentState.ts
+          head -6 upstream/components/homeroom/usePersistentState.ts
+          grep -c "api/data" upstream/components/homeroom/usePersistentState.ts
+
       - name: 安装依赖
         run: cd upstream && npm ci --no-audit --no-fund
 
