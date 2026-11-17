@@ -57,7 +57,7 @@ jobs:
         run: |
           cd upstream
           grep -rl "保存在此浏览器" app components 2>/dev/null | while read -r f; do
-            sed -i "s/修改会保存在此浏览器/修改会保存在家里服务器/g" "$f"
+            sed -i "s/保存在此浏览器/保存在家里服务器/g" "$f"
             echo "patched $f"
           done
           grep -rn "保存在此浏览器" app components 2>/dev/null | head -3 || echo "旧文案已全部替换"
